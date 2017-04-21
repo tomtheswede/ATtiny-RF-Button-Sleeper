@@ -4,6 +4,8 @@
  *   Updated 21/04/2017
  */
 
+#include <avr/sleep.h>
+
 //Device parameters
 const unsigned long devID = 183322503; // 00001010111011011000100111101111 So the message can be picked up by the right receiver
 const unsigned long devType = 1; //Reads as "1" corresponding with BTN type
@@ -28,8 +30,8 @@ volatile bool pressed=0;
 volatile bool buttonState=0;
 volatile unsigned long pressTime=0;
 volatile const unsigned int reTriggerDelay=50; //minimum time in millis between button presses to remove bad contact
-#define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit)) //OR
-#define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit)) //AND
+#define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit)) //OR - Turn on bit
+#define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit)) //AND - Turn off bit
 
 void setup() { //This code runs as soon as the device is powered on.
   pinMode(sendPin,OUTPUT);
@@ -43,12 +45,23 @@ void setup() { //This code runs as soon as the device is powered on.
   //Set pin to start interrupts
   sbi(GIMSK,PCIE); //Turn on interrupt
   sbi(PCMSK,PCINT0); //set pin affected by interupt - PCINT0 corresponds to PB0 or pin 5
+  sleepSet(); //Sleep when entering loop
 }
 
 void loop() {
 
   CheckButton();
 
+}
+
+void sleepSet() {
+  //Power down
+  cbi(ADCSRA,ADEN); //Turns off the ADCs
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+  sleep_enable();
+  sleep_mode(); //Starts the sleep
+  //Sleep is here. Code only runs onward if an intterupt is triggered.
+  sbi(ADCSRA,ADEN); //Turns on the ADCs
 }
 
 //Button functions --------------------------------------------
@@ -77,6 +90,7 @@ void CheckButton() {
     primer[2]=0;
     primer[3]=0;
     primer[4]=0;
+    sleepSet(); //Sleep when entering loop
   }
   if (pressed) {
     digitalWrite(pwrPin,1); //Turn on ancillaries
