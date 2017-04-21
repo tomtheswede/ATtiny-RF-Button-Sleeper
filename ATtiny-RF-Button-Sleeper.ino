@@ -22,15 +22,14 @@ int msgLength;
 long currentTime=millis();
 
 //Interrupt variables
-#define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit)) //OR
-#define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit)) //AND
+volatile const byte btnPin = 0; //rfButton v0.4 uses pin 5 which is PB0 so use 0 here.
 volatile bool primer[5]={0,0,0,0,0};
 volatile bool pressed=0;
 volatile bool buttonState=0;
 volatile unsigned long pressTime=0;
 volatile const unsigned int reTriggerDelay=50; //minimum time in millis between button presses to remove bad contact
-volatile const byte btnPin = 0; //rfButton v0.4 uses pin 5 which is PB0 so use 0 here.
-
+#define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit)) //OR
+#define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit)) //AND
 
 void setup() { //This code runs as soon as the device is powered on.
   pinMode(sendPin,OUTPUT);
@@ -43,7 +42,7 @@ void setup() { //This code runs as soon as the device is powered on.
   digitalWrite(pwrPin,0); //Power down devices between button pushes
   //Set pin to start interrupts
   sbi(GIMSK,PCIE); //Turn on interrupt
-  sbi(PCMSK,PCINT0); //set pin affected by interupt
+  sbi(PCMSK,PCINT0); //set pin affected by interupt - PCINT0 corresponds to PB0 or pin 5
 }
 
 void loop() {
