@@ -1,6 +1,7 @@
 /*  
  *   For sending 433MHz RF signals from battery operated ATtiny85
  *   Code by Thomas Friberg (https://github.com/tomtheswede)
+ *   Updated 21/04/2017
  */
 
 //Device parameters
