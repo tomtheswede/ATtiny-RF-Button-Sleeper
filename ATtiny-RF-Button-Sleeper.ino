@@ -4,17 +4,17 @@
  *   Updated 21/04/2017
  */
 
-#include <avr/sleep.h>
+#include <avr/sleep.h> //For sleep commands set_sleep_mode(SLEEP_MODE_PWR_DOWN), sleep_enable() and sleep_mode();
 
 //Device parameters
-const unsigned long devID = 183322503; // 00001010111011011000100111101111 So the message can be picked up by the right receiver
+const unsigned long devID = 5235223; // 00001010111011011000100111101111 So the message can be picked up by the right receiver
 const unsigned long devType = 1; //Reads as "1" corresponding with BTN type
 
 //General variables
 const byte pwrPin = 1; //Power for external elements pin. pin 6 for rfbutton v0.4 pin 6 is PB1 so use 1
 
 //RF related
-const byte sendPin = 2; //RF pin. pin 3 for rfbutton v0.4 which is pb4 so use 4
+const byte sendPin = 4; //RF pin. pin 3 for rfbutton v0.4 which is pb4 so use 4 use. If debugging in breadboard, use 2
 const byte typePreamble[4] = {120,121,122,123}; //01111000 for register, 01111001 for basic message type
 byte msgLengths[4]={32,8,16,32};
 byte msgBuffer[9]; //Max 9 bytes for transmission
@@ -90,7 +90,7 @@ void CheckButton() {
     primer[2]=0;
     primer[3]=0;
     primer[4]=0;
-    sleepSet(); //Sleep when entering loop
+    sleepSet(); //Sleep when button is released
   }
   if (pressed) {
     digitalWrite(pwrPin,1); //Turn on ancillaries
@@ -107,7 +107,7 @@ void CheckButton() {
       encodeMessage(1,3);
       primer[2]=0;
     }
-    else if (primer[3] && (currentTime-pressTime>4000)) {
+    else if (primer[3] && (currentTime-pressTime>3000)) {
       encodeMessage(1,4);
       primer[3]=0;
     }
@@ -121,17 +121,17 @@ void CheckButton() {
 //RF Functions ------------------------------------------------------------------------
 
 void pulse(bool logic) {
-  if (logic) {
+  if (logic) { //a one
     digitalWrite(sendPin,HIGH);
-    delayMicroseconds(720);  //797us realtime
+    delayMicroseconds(410);  //797us realtime - 720
     digitalWrite(sendPin,LOW);
-    delayMicroseconds(60);   //416us realtime
+    delayMicroseconds(10);   //416us realtime - 60
   }
-  else {
+  else { //a zero
     digitalWrite(sendPin,HIGH);
-    delayMicroseconds(320);  //416us realtime
+    delayMicroseconds(140);  //416us realtime -320
     digitalWrite(sendPin,LOW);
-    delayMicroseconds(470);  //797us realtime
+    delayMicroseconds(30);  //797us realtime - 470
   }
 }
 
@@ -156,13 +156,13 @@ void encodeMessage(byte msgType,unsigned long msg) {
   //Send the message
   pulse(1); //For calibration pre-read of reciever
   pulse(0); //For calibration pre-read of reciever
-  delay(2);
+  delay(1);
   for (int rep=0; rep<5; rep++) {
     for (int i=0; i<msgLength+40; i++) {
       pulse(bitRead(msgBuffer[i/8],7-(i%8)));
     }
     pulse(0); //to end the message timing
-    delay(2);
+    delay(1);
   }
-  delay(2);
+  delay(1);
 }
