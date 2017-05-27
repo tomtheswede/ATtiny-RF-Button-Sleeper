@@ -1,13 +1,13 @@
 /*  
  *   For sending 433MHz RF signals from battery operated ATtiny85
  *   Code by Thomas Friberg (https://github.com/tomtheswede)
- *   Updated 21/04/2017
+ *   Updated 27/05/2017
  */
 
 #include <avr/sleep.h> //For sleep commands set_sleep_mode(SLEEP_MODE_PWR_DOWN), sleep_enable() and sleep_mode();
 
 //Device parameters
-const unsigned long devID = 523195223; // 00001010111011011000100111101111 So the message can be picked up by the right receiver
+const unsigned long devID = 319522387; // 00001010111011011000100111101111 So the message can be picked up by the right receiver
 const unsigned long devType = 31; //Reads as "1" corresponding with BTN type
 
 //General variables
