@@ -7,8 +7,8 @@
 #include <avr/sleep.h> //For sleep commands set_sleep_mode(SLEEP_MODE_PWR_DOWN), sleep_enable() and sleep_mode();
 
 //Device parameters
-const unsigned long devID = 5235223; // 00001010111011011000100111101111 So the message can be picked up by the right receiver
-const unsigned long devType = 1; //Reads as "1" corresponding with BTN type
+const unsigned long devID = 652395223; // 00001010111011011000100111101111 So the message can be picked up by the right receiver
+const unsigned long devType = 31; //Reads as "1" corresponding with BTN type
 
 //General variables
 const byte pwrPin = 1; //Power for external elements pin. pin 6 for rfbutton v0.4 pin 6 is PB1 so use 1
@@ -112,7 +112,7 @@ void CheckButton() {
       primer[3]=0;
     }
     else if (primer[4] && (currentTime-pressTime>8000)) {
-      encodeMessage(0,devID);  //Register
+      encodeMessage(0,devType);  //Register
       primer[4]=0;
     }
   }
