@@ -144,7 +144,7 @@ void CheckButton() {
       encodeMessage(1,4);
       primer[3]=0;
     }
-    else if (primer[4] && (currentTime-pressTime>8000)) {
+    else if (primer[4] && (currentTime-pressTime>7000)) {
       encodeMessage(0,devType);  //Register
       primer[4]=0;
     }
