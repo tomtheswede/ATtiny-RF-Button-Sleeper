@@ -7,7 +7,7 @@
 #include <avr/sleep.h> //For sleep commands set_sleep_mode(SLEEP_MODE_PWR_DOWN), sleep_enable() and sleep_mode();
 
 //Device parameters
-const unsigned long devID = 319522387; // 00001010111011011000100111101111 So the message can be picked up by the right receiver
+const unsigned long devID = 43435522; // 00001010111011011000100111101111 So the message can be picked up by the right receiver
 const unsigned long devType = 31; //Reads as "1" corresponding with BTN type
 
 //General variables
@@ -22,7 +22,10 @@ int msgLength;
 int repQuant;
 
 //Button related
-long currentTime=millis();
+unsigned long currentTime=millis();
+unsigned long lastBatRead=0;
+boolean postRelease=false;
+unsigned int timeOutCount=0;
 
 //Interrupt variables
 volatile const byte btnPin = 0; //rfButton v0.4 uses pin 5 which is PB0 so use 0 here.
@@ -31,6 +34,7 @@ volatile bool pressed=0;
 volatile bool buttonState=0;
 volatile unsigned long pressTime=0;
 volatile const unsigned int reTriggerDelay=50; //minimum time in millis between button presses to remove bad contact
+volatile unsigned long watchdogCounter=0;
 #define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit)) //OR - Turn on bit
 #define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit)) //AND - Turn off bit
 
@@ -41,8 +45,16 @@ void setup() { //This code runs as soon as the device is powered on.
   pinMode(btnPin,INPUT_PULLUP);
 
   encodeMessage(0,devID); //Register on first on
+  delay(400);
+  encodeMessage(2,getVCC()); //Report battery on first on
+  delay(10);
 
   digitalWrite(pwrPin,0); //Power down devices between button pushes
+  //Set watchdog timer to 8 seconds
+  WDTCR |= (1<<WDP3) | (0<<WDP2) | (0<<WDP1) | (1<<WDP0);
+  // Set watchdog timer in interrupt mode
+  //WDTCR |= (1<<WDTIE);
+  //WDTCR |= (0<<WDE);
   //Set pin to start interrupts
   sbi(GIMSK,PCIE); //Turn on interrupt
   sbi(PCMSK,PCINT0); //set pin affected by interupt - PCINT0 corresponds to PB0 or pin 5
@@ -55,14 +67,34 @@ void loop() {
 
 }
 
+//System functions
+
 void sleepSet() {
   //Power down
   cbi(ADCSRA,ADEN); //Turns off the ADCs
+  sei(); //Enables all interrupts
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   sleep_enable();
   sleep_mode(); //Starts the sleep
   //Sleep is here. Code only runs onward if an intterupt is triggered.
-  sbi(ADCSRA,ADEN); //Turns on the ADCs
+  sbi(ADCSRA,ADEN); //Turns on the ADCs when leaving sleep
+}
+
+int getVCC() { //Returns battery voltage in millivolts
+  //From https://github.com/cano64/ArduinoSystemStatus/blob/master/SystemStatus.cpp
+  ADMUX = _BV(MUX3) | _BV(MUX2); // For ATtiny85/45
+  delay(2); // Wait for Vref to settle
+  ADCSRA |= _BV(ADSC); // Convert
+  while (bit_is_set(ADCSRA, ADSC));
+  uint8_t low = ADCL;
+  unsigned int val = (ADCH << 8) | low;
+  //discard previous result
+  ADCSRA |= _BV(ADSC); // Convert
+  while (bit_is_set(ADCSRA, ADSC));
+  low = ADCL;
+  val = (ADCH << 8) | low;
+  lastBatRead=millis();
+  return ((long)1024 * 1100) / val;
 }
 
 //Button functions --------------------------------------------
@@ -78,21 +110,16 @@ ISR(PCINT0_vect) {
     primer[3]=1;
     primer[4]=1;
     pressTime=millis();
-    //encodeMessage(1,5);
   }
+  cli(); //Turn off all interrupts
+}
+
+ISR(WDT_vect) {
+  watchdogCounter++;
 }
 
 void CheckButton() {
-  if (pressed && digitalRead(btnPin)) {
-    pressed = false;
-    digitalWrite(pwrPin,0); //Turn off ancillaries
-    primer[0]=0;
-    primer[1]=0;
-    primer[2]=0;
-    primer[3]=0;
-    primer[4]=0;
-    sleepSet(); //Sleep when button is released
-  }
+  
   if (pressed) {
     digitalWrite(pwrPin,1); //Turn on ancillaries
     currentTime=millis();
@@ -113,9 +140,31 @@ void CheckButton() {
       primer[3]=0;
     }
     else if (primer[4] && (currentTime-pressTime>8000)) {
-      encodeMessage(0,devType);  //Register
+      encodeMessage(0,devID);  //Register
       primer[4]=0;
     }
+    else if (digitalRead(btnPin)) {
+      pressed = false;
+      primer[0]=0;
+      primer[1]=0;
+      primer[2]=0;
+      primer[3]=0;
+      primer[4]=0;
+      postRelease=true;
+      timeOutCount=0;
+    }
+  }
+  else if (postRelease) { //if no longer pressed, begin postrelease count
+  //else if (postRelease && currentTime!=millis()) { //if no longer pressed, begin postrelease count
+    //timeOutCount++;
+    //currentTime=millis();
+    //if (timeOutCount>100) { //after approx 1000ms perform functions before sleeping
+      postRelease=false;
+      //Check battery if well timed
+      encodeMessage(2,getVCC());
+      digitalWrite(pwrPin,0); //Turn off ancillaries
+      sleepSet(); //Sleep when button is released and measurements complete
+    //}
   }
 }
 
@@ -139,7 +188,7 @@ void pulse(bool logic) {
 void encodeMessage(byte msgType,unsigned long msg) {
   int k;
   //More messages if registering for determining reception
-  if (msgType==0) {
+  if (msgType==0) { //If registering, send more repeats for signal quality check
     repQuant=9;
   }
   else {
