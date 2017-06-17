@@ -164,7 +164,7 @@ void CheckButton() {
     }
   }
   //Check battery if well timed
-  else if (batteryFlag) {
+  else if (batteryFlag && (millis()-pressTime>30000)) {
     batteryFlag=false;
     watchdogCounter=0;
     encodeMessage(2,getVCC());
