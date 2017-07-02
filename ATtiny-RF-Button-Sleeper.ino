@@ -7,8 +7,8 @@
 #include <avr/sleep.h> //For sleep commands set_sleep_mode(SLEEP_MODE_PWR_DOWN), sleep_enable() and sleep_mode();
 
 //Device parameters
-const unsigned long devID = 43435522; // 00001010111011011000100111101111 So the message can be picked up by the right receiver
-const unsigned long devType = 31; //Reads as "1" corresponding with BTN type
+const unsigned long devID = {5123434355,1656346333}; // 00001010111011011000100111101111 So the message can be picked up by the right receiver
+const unsigned long devType = {31,34}; //Reads as "1" corresponding with BTN type
 
 //General variables
 const byte pwrPin = 1; //Power for external elements pin. pin 6 for rfbutton v0.7 pin 6 is PB1 so use 1
@@ -46,7 +46,9 @@ void setup() { //This code runs as soon as the device is powered on.
   digitalWrite(pwrPin,1);
   pinMode(btnPin,INPUT_PULLUP);
 
-  encodeMessage(0,devType); //Register on first on
+  encodeMessage(0,devType[0]); //Register on first on for button
+  delay(400);
+  encodeMessage(0,devType[1]); //Register on first on for battery
   delay(400);
   encodeMessage(2,getVCC()); //Report battery on first on
   delay(10);
@@ -116,7 +118,7 @@ ISR(PCINT0_vect) {
 
 ISR(WDT_vect) { //Only triggers when button is not pressed due to interupts being disabled when not in sleep
   watchdogCounter++;
-  if (watchdogCounter>30) { //The number here determines frequency of report
+  if (watchdogCounter>3115) { //The number here determines frequency of report. 30 is equivalent to 208 seconds. 3115 is equivalent to 6hrs
     batteryFlag=true;
   }
   else {
@@ -145,7 +147,7 @@ void CheckButton() {
       primer[3]=0;
     }
     else if (primer[4] && (currentTime-pressTime>7000)) {
-      encodeMessage(0,devType);  //Register
+      encodeMessage(0,devType[0]);  //Register
       primer[4]=0;
     }
     else if (currentTime<pressTime) {
@@ -206,7 +208,7 @@ void encodeMessage(byte msgType,unsigned long msg) {
     k++;
   }
   for (int i=0; i<32; i++) {  //32 bit device ID
-    bitWrite(msgBuffer[k/8],7-(k%8),bitRead(devID,31-i));
+    bitWrite(msgBuffer[k/8],7-(k%8),bitRead(devID[0],31-i));
     k++;
   }
   for (int i=0; i<msgLength; i++) {  //72,48,56,72 bit message length
